@@ -9,6 +9,9 @@
         "angular-route": "latest",
         "bootstrap": "2.3.2",
         "angular-bootstrap": "0.7.0",
+        "angular-ui": "latest",
+        "jquery": "latest",
+        "jquery-ui": "latest",
         "angular-ui-utils": "0.0.4"
     }
 }

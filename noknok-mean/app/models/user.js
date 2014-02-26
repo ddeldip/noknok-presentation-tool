@@ -1,12 +1,12 @@
-'use strict';
-
 /**
  * Module dependencies.
  */
 var mongoose = require('mongoose'),
     Schema = mongoose.Schema,
     crypto = require('crypto'),
-    authTypes = ['github', 'twitter', 'facebook', 'google'];
+    _ = require('underscore'),
+    passwordHash = require('password-hash'),
+    authTypes = ['github', 'twitter', 'facebook', 'google', 'email'];
 
 
 /**
@@ -15,12 +15,41 @@ var mongoose = require('mongoose'),
 var UserSchema = new Schema({
     name: String,
     email: String,
-    username: {
-        type: String,
-        unique: true
+    username: String,
+    profilPictures: [{
+        type: String
+    }],
+    birth: Date,
+    university: {
+        type: Schema.ObjectId,
+        ref: 'University'
     },
-    hashed_password: String,
+    subjects: [{
+        type: String
+    }],
+    relationshipStatus: String,
+    posts:[{
+        type: Schema.ObjectId,
+        ref: 'Post'
+    }],
+    likes:[{
+        type: String
+    }],
+    comments:[{
+        type: Schema.ObjectId,
+        ref: 'Comment'
+    }],
+    surveys:[{
+        type: Schema.ObjectId,
+        ref: 'Survey'
+    }],
+    profileVisitors:[{
+        type: Schema.ObjectId,
+        ref: 'User'
+    }],
     provider: String,
+    hashed_password: String,
+    accessToken: String,
     salt: String,
     facebook: {},
     twitter: {},
@@ -61,8 +90,9 @@ UserSchema.path('email').validate(function(email) {
 
 UserSchema.path('username').validate(function(username) {
     // if you are authenticating by any of the oauth strategies, don't validate
-    if (authTypes.indexOf(this.provider) !== -1) return true;
-    return username.length;
+    // if (authTypes.indexOf(this.provider) !== -1) return true;
+    // return username.length;
+    return 1;
 }, 'Username cannot be blank');
 
 UserSchema.path('hashed_password').validate(function(hashed_password) {
@@ -76,12 +106,18 @@ UserSchema.path('hashed_password').validate(function(hashed_password) {
  * Pre-save hook
  */
 UserSchema.pre('save', function(next) {
+
     if (!this.isNew) return next();
+    if (!this.isModified('password')) return next();
 
     if (!validatePresenceOf(this.password) && authTypes.indexOf(this.provider) === -1)
         next(new Error('Invalid password'));
+
     else
-        next();
+        {
+            this.password = passwordHash.generate(this.password)
+            next();
+        };
 });
 
 /**
@@ -96,7 +132,8 @@ UserSchema.methods = {
      * @api public
      */
     authenticate: function(plainText) {
-        return this.encryptPassword(plainText) === this.hashed_password;
+        console.log("auth" + plainText + this.hashed_password);
+        return passwordHash.verify(plainText, this.hashed_password);
     },
 
     /**
@@ -106,7 +143,7 @@ UserSchema.methods = {
      * @api public
      */
     makeSalt: function() {
-        return crypto.randomBytes(16).toString('base64');
+        return Math.round((new Date().valueOf() * Math.random())) + '';
     },
 
     /**
@@ -117,9 +154,38 @@ UserSchema.methods = {
      * @api public
      */
     encryptPassword: function(password) {
-        if (!password || !this.salt) return '';
-        var salt = new Buffer(this.salt, 'base64');
-        return crypto.pbkdf2Sync(password, salt, 10000, 64).toString('base64');
+        console.log("auth1");
+        if (!password) return '';
+        return passwordHash.generate(password);
+    },
+
+    comparePassword: function(candidatePassword, cb) {
+        console.log("auth2");
+
+        if(!passwordHash.verify(candidatePassword, this.password)) return cb("Password does not match.");
+        else cb(null, true);
+    },
+
+    generateRandomToken: function() {
+    var chars = "_!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+        token = new Date().getTime() + '_';
+    for ( var x = 0; x < 16; x++ ) {
+        var i = Math.floor( Math.random() * 62 );
+        token += chars.charAt( i );
+    }
+    return token;
+    }
+
+};
+
+/**
+ * Statics
+ */
+UserSchema.statics = {
+    load: function(id, cb) {
+        this.findOne({
+            _id: id
+        }).exec(cb);
     }
 };
 

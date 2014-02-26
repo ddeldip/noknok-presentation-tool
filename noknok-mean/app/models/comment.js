@@ -8,43 +8,46 @@ var mongoose = require('mongoose'),
 
 
 /**
- * Article Schema
+ * Comment Schema
  */
-var ArticleSchema = new Schema({
+var CommentSchema = new Schema({
     created: {
         type: Date,
         default: Date.now
-    },
-    title: {
-        type: String,
-        default: '',
-        trim: true
     },
     content: {
         type: String,
         default: '',
         trim: true
     },
-    user: {
+    author: {
         type: Schema.ObjectId,
         ref: 'User'
-    }
+    },
+    post: {
+        type: Schema.ObjectId,
+        ref: 'Post'
+    },
+    likedBy: [{
+        type: Schema.ObjectId,
+        ref: 'User'
+    }]
 });
 
 /**
  * Validations
  */
-ArticleSchema.path('title').validate(function(title) {
-    return title.length;
-}, 'Title cannot be blank');
+CommentSchema.path('content').validate(function(content) {
+    return content.length;
+}, 'Content cannot be blank');
 
 /**
  * Statics
  */
-ArticleSchema.statics.load = function(id, cb) {
+CommentSchema.statics.load = function(id, cb) {
     this.findOne({
         _id: id
     }).populate('user', 'name username').exec(cb);
 };
 
-mongoose.model('Article', ArticleSchema);
+mongoose.model('Comment', CommentSchema);
